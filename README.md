@@ -18,7 +18,6 @@ The exhibition is a single HTML file with zero dependencies — no frameworks, n
 
 ```
 exhibition.html      — the exhibition (open this)
-_gallery/            — web-optimized images for the gallery
 *.jpg                — original full-resolution photographs
 ```
 
