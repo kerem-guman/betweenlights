@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no">
+<title>Between Lights</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;color:#fff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;-webkit-user-select:none;user-select:none;touch-action:none}
+
+#universe{position:absolute;width:9000px;height:6500px;transform-origin:0 0;will-change:transform}
+
+.photo{
+  position:absolute;
+  cursor:pointer;
+  opacity:0;
+  transition:opacity 1.2s cubic-bezier(.25,.46,.45,.94);
+  transform-origin:center center;
+}
+.photo.visible{opacity:1}
+.photo img{
+  display:block;width:100%;height:100%;
+  object-fit:cover;
+  filter:brightness(0.95);
+  transition:filter 0.3s ease;
+}
+.photo:hover img{filter:brightness(1.05)}
+
+/* Subtle tape strips on some images */
+.photo .tape{
+  position:absolute;
+  height:10px;
+  background:rgba(255,255,255,0.08);
+  top:-5px;
+  pointer-events:none;
+}
+
+/* Lightbox */
+#lightbox{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.97);
+  display:none;align-items:center;justify-content:center;
+  z-index:1000;cursor:pointer;
+  opacity:0;transition:opacity 0.5s ease;
+}
+#lightbox.show{display:flex}
+#lightbox.active{opacity:1}
+#lightbox img{
+  max-width:94vw;max-height:94vh;
+  object-fit:contain;
+  transition:transform 0.4s cubic-bezier(.25,.46,.45,.94);
+}
+#lightbox .caption{
+  position:absolute;bottom:3vh;left:50%;transform:translateX(-50%);
+  font-size:10px;letter-spacing:0.25em;color:rgba(255,255,255,0.2);
+  text-transform:uppercase;
+}
+
+/* Title overlay */
+#title{
+  position:fixed;inset:0;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  z-index:500;background:#000;
+  transition:opacity 2.5s cubic-bezier(.25,.46,.45,.94);
+  cursor:pointer;
+}
+#title.fade{opacity:0;pointer-events:none}
+#title h1{
+  font-size:clamp(18px,3vw,42px);
+  font-weight:200;letter-spacing:0.5em;
+  text-transform:uppercase;color:#fff;
+  margin-bottom:0.6em;
+  text-indent:0.5em;
+}
+#title .sub{
+  font-size:clamp(9px,1.1vw,14px);
+  font-weight:300;letter-spacing:0.3em;
+  color:rgba(255,255,255,0.25);
+  text-transform:uppercase;
+  text-indent:0.3em;
+}
+#title .enter{
+  margin-top:3em;
+  font-size:clamp(8px,0.8vw,11px);
+  letter-spacing:0.2em;
+  color:rgba(255,255,255,0.15);
+  animation:pulse 3s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:0.15}50%{opacity:0.4}}
+
+/* Minimap */
+#minimap{
+  position:fixed;bottom:20px;right:20px;
+  width:100px;height:72px;
+  border:1px solid rgba(255,255,255,0.08);
+  background:rgba(0,0,0,0.5);
+  z-index:100;pointer-events:none;
+  transition:opacity 0.5s ease;
+  border-radius:2px;
+}
+#minimap.hidden{opacity:0}
+#mm-vp{
+  position:absolute;
+  border:1px solid rgba(255,255,255,0.35);
+  background:rgba(255,255,255,0.03);
+  border-radius:1px;
+}
+.mm-dot{
+  position:absolute;width:2px;height:2px;
+  background:rgba(255,255,255,0.12);
+  border-radius:50%;
+}
+
+/* Hint */
+#hint{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  font-size:clamp(8px,1vw,11px);
+  letter-spacing:0.18em;color:rgba(255,255,255,0.18);
+  z-index:100;transition:opacity 1.5s ease;
+  text-transform:uppercase;
+}
+#hint.hidden{opacity:0}
+
+/* Image counter */
+#counter{
+  position:fixed;top:20px;right:20px;
+  font-size:10px;letter-spacing:0.15em;
+  color:rgba(255,255,255,0.12);
+  z-index:100;transition:opacity 0.5s ease;
+}
+#counter.hidden{opacity:0}
+
+/* Essay panel */
+#essay-btn{
+  position:fixed;top:20px;left:20px;
+  padding:8px 16px;
+  font-size:clamp(8px,0.9vw,11px);
+  letter-spacing:0.2em;text-transform:uppercase;
+  color:rgba(255,255,255,0.3);
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:2px;cursor:pointer;
+  z-index:200;transition:all 0.3s ease;
+  font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  -webkit-user-select:none;user-select:none;
+}
+#essay-btn:hover{color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.15)}
+#essay-btn.hidden{opacity:0;pointer-events:none}
+
+#essay-panel{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.97);
+  z-index:900;
+  display:none;opacity:0;
+  transition:opacity 0.5s ease;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
+#essay-panel.show{display:block}
+#essay-panel.active{opacity:1}
+#essay-panel .essay-inner{
+  max-width:680px;
+  margin:0 auto;
+  padding:80px 30px 120px;
+}
+#essay-panel .essay-close{
+  position:fixed;top:20px;right:24px;
+  font-size:11px;letter-spacing:0.2em;text-transform:uppercase;
+  color:rgba(255,255,255,0.3);cursor:pointer;
+  z-index:910;transition:color 0.3s ease;
+  background:none;border:none;
+  font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  padding:8px 0;
+}
+#essay-panel .essay-close:hover{color:rgba(255,255,255,0.7)}
+#essay-panel h2{
+  font-size:clamp(16px,2.5vw,28px);
+  font-weight:200;letter-spacing:0.4em;
+  text-transform:uppercase;text-indent:0.4em;
+  color:#fff;margin-bottom:0.4em;
+  text-align:center;
+}
+#essay-panel .essay-subtitle{
+  font-size:clamp(10px,1.1vw,14px);
+  font-weight:300;letter-spacing:0.25em;
+  color:rgba(255,255,255,0.25);
+  text-transform:uppercase;text-indent:0.25em;
+  text-align:center;margin-bottom:4em;
+}
+#essay-panel h3{
+  font-size:clamp(11px,1.1vw,14px);
+  font-weight:600;letter-spacing:0.08em;
+  color:rgba(255,255,255,0.85);
+  margin:2.8em 0 1.2em;
+}
+#essay-panel p{
+  font-size:clamp(12px,1.05vw,15px);
+  font-weight:300;line-height:1.85;
+  color:rgba(255,255,255,0.55);
+  margin-bottom:1.4em;
+  text-indent:1.5em;
+  text-align:justify;
+  -webkit-hyphens:auto;hyphens:auto;
+}
+#essay-panel p.first{text-indent:0}
+#essay-panel .essay-divider{
+  text-align:center;color:rgba(255,255,255,0.12);
+  letter-spacing:0.5em;margin:3em 0 1em;font-size:12px;
+}
+
+@media(max-width:768px){
+  #minimap{width:65px;height:47px;bottom:12px;right:12px}
+  #hint{bottom:12px;font-size:8px}
+  #counter{top:12px;right:12px;font-size:8px}
+  #essay-btn{top:12px;left:12px;padding:6px 12px}
+  #essay-panel .essay-inner{padding:60px 20px 100px}
+  #essay-panel .essay-close{top:12px;right:16px}
+}
+</style>
+</head>
+<body>
+
+<div id="title">
+  <h1>Between Lights</h1>
+  <div class="sub">A Nocturnal Survey</div>
+  <div class="sub" style="margin-top:1.8em;color:rgba(255,255,255,0.35);letter-spacing:0.25em">Kerem G&uuml;man</div>
+  <div class="enter">tap or click to enter</div>
+</div>
+
+<div id="universe"></div>
+
+<div id="lightbox">
+  <img id="lb-img" src="" alt="">
+  <div class="caption" id="lb-caption"></div>
+</div>
+
+<div id="minimap" class="hidden">
+  <div id="mm-vp"></div>
+</div>
+
+<div id="hint" class="hidden">drag to explore &middot; tap to enlarge</div>
+<div id="counter" class="hidden"></div>
+
+<button id="essay-btn" class="hidden">Exhibition Text</button>
+
+<div id="essay-panel">
+  <button class="essay-close">Close</button>
+  <div class="essay-inner">
+    <h2>Between Lights</h2>
+    <div class="essay-subtitle">A Nocturnal Survey</div>
+    <div class="essay-subtitle" style="margin-top:0.8em;margin-bottom:4em;color:rgba(255,255,255,0.3)">Kerem G&uuml;man</div>
+
+    <p class="first">To look at these photographs is to enter a space that refuses the terms of arrival. There is no destination in this work, no orienting landmark that might anchor the viewer in the certainty of place. Instead, what unfolds across the walls of this exhibition is a sustained meditation on what it means to inhabit the interval&mdash;the space between departure and arrival, between recognition and illegibility, between the self one performs in daylight and the self that emerges, unbidden, when the structures of visibility dissolve into darkness. These are photographs made in transit, at night, from the threshold of vehicles and windows, in landscapes that have surrendered their contours to the absence of light. They are documents of passage through territories that cannot be claimed, and in this refusal of territorial fixity, they open onto a politics of dislocation that resonates deeply with the conditions of queer life, of migrant subjectivity, of all those forms of existence that are lived in the gap between sanctioned categories of belonging.</p>
+
+    <p>The night, in this body of work, is not merely a temporal condition. It is an ontological one. Darkness here operates as what we might call, following Gilles Deleuze and F&eacute;lix Guattari, a space of deterritorialization&mdash;a zone in which the coded striations of the social landscape lose their grip, where the apparatus of surveillance and legibility that governs daylight existence is temporarily suspended. The photographs do not illuminate. They register the minimal residues of light&mdash;a streetlamp&rsquo;s halo bleeding into fog, the twin beams of a distant vehicle tracing a road that disappears into nothing, the faint amber glow of a settlement clinging to the edge of a mountain&rsquo;s silhouette. These are not images of things seen but of seeing itself at its limit, of perception reaching toward objects that withdraw, that refuse to be fully constituted as knowable.</p>
+
+    <h3>I. Deterritorialized Landscapes</h3>
+
+    <p class="first">Deterritorialization, as Deleuze and Guattari theorized it, describes the process by which established codes, territories, and structures of meaning are destabilized&mdash;pulled free from the systems that organize and contain them. It is not simply displacement but a more radical unmooring: the dissolution of the very ground on which one might stand, the erosion of those spatial and symbolic coordinates that allow a subject to say <em>I am here, this is where I belong</em>. In the context of these photographs, deterritorialization is registered first and most immediately in the landscape itself. Mountains, roads, fields, and horizons are present, but they are present as absences&mdash;as dark masses that no longer signify the bounded, mappable territories of national or regional identity. The land has been stripped of its legibility. What remains is shape without name, terrain without jurisdiction.</p>
+
+    <p>This is a critical gesture, and it is worth dwelling on what it accomplishes. In the discourse of landscape photography, the land has historically been made to do ideological work: it has been enrolled in projects of national myth-making, colonial cartography, romantic sublimity, and ecological mourning. Even in its most critical iterations, landscape photography tends to preserve the legibility of the terrain as a precondition for its intervention&mdash;one must recognize the place in order to understand what is being said about it. Here, that legibility is withdrawn. The viewer cannot identify where these photographs were made, cannot place them within the grid of national or regional specificity. The land is not unnamed because the artist has chosen to withhold its name; it is unnameable because the conditions of its apprehension&mdash;darkness, motion, the blur of transit&mdash;have made naming impossible. This is deterritorialization not as metaphor but as perceptual fact.</p>
+
+    <p>And yet deterritorialization is never simply loss. It is always also the opening of a new plane of possibility, what Deleuze and Guattari called a <em>line of flight</em>&mdash;a trajectory that escapes the overcoded territories of the state, the family, the normative subject, and moves toward something not yet determined. The darkness in these images is not void. It is teeming with potential, with the possibility of forms that have not yet been captured by the apparatus of identification. The scattered lights that punctuate the night&mdash;distant, indeterminate, often blurred into bokeh or halation&mdash;function as signals from this other plane, as evidence that something persists beyond the reach of the legible. They are, to borrow from Jos&eacute; Esteban Mu&ntilde;oz, illuminations from a future that is not yet here, that we can sense but not yet grasp.</p>
+
+    <h3>II. The Queer Opacity of Night</h3>
+
+    <p class="first">To speak of these photographs through the lens of queer theory is not to impose an external framework upon them but to recognize a structural homology between the conditions they depict and the conditions of queer existence as theorized by thinkers from Mu&ntilde;oz to Judith Butler to Sara Ahmed. Queerness, as Mu&ntilde;oz argued in his landmark work on queer futurity, is not an identity in the sense of a stable, self-identical category. It is a horizon&mdash;something always approaching, never fully arrived. It is the name for a mode of being that refuses the presentist demand to declare itself fully, to make itself legible within the existing taxonomies of sexual and gender identity. Queerness, in this formulation, is structurally liminal: it exists in the not-yet, in the space between what is and what could be.</p>
+
+    <p>The photographs in this exhibition occupy an analogous liminality. They are images of the not-yet-visible, of forms that are in the process of emerging from or dissolving into darkness. The streetlamp that stands alone in a field of black does not illuminate a scene; it illuminates the fact of its own isolation, its own condition as a singular point of orientation in a world that offers no other. Sara Ahmed&rsquo;s work on orientation is instructive here: she has written extensively about how subjects are oriented&mdash;directed toward certain objects, certain futures, certain ways of being in the world&mdash;and how queerness names a disorientation, a turning away from the prescribed lines of direction. In these photographs, orientation itself is in crisis. The landscape offers no reliable coordinates. The lights that appear could be approaching or receding, near or impossibly far. The viewer is placed in a state of spatial and perceptual uncertainty that mirrors the existential uncertainty of the queer subject who has stepped outside the trajectories laid down by heteronormative culture.</p>
+
+    <p>There is also, in the insistent darkness of this work, a politics of opacity that resonates with &Eacute;douard Glissant&rsquo;s theorization of the right to opacity&mdash;the right not to be understood, not to be reduced to transparency, not to be made fully available to the gaze of the other. Glissant, writing from the context of Caribbean postcolonial experience, argued that the demand for transparency is always a demand for domination: to make the other fully legible is to make them fully governable. Opacity, by contrast, is a form of resistance&mdash;a preservation of the irreducible complexity of the self against the flattening operations of power. The darkness in these photographs enacts an analogous resistance. The landscapes, the roads, the structures that appear at the edges of visibility&mdash;they resist the viewer&rsquo;s desire to know them. They insist on their right to remain partially hidden, partially illegible, to exist in a mode that exceeds the capacity of the photographic apparatus to fully capture and contain them.</p>
+
+    <h3>III. Alienation as Dwelling</h3>
+
+    <p class="first">If deterritorialization describes the dissolution of the ground beneath one&rsquo;s feet, alienation describes the affective experience of that dissolution&mdash;the feeling of being fundamentally estranged from the world one inhabits, of being present in a place without being of it. Marx theorized alienation as a condition of labor under capitalism: the worker is alienated from the product of their work, from the process of production, from their fellow workers, and ultimately from their own human essence. But alienation has a longer and more capacious philosophical history, one that extends from Hegel&rsquo;s concept of <em>Entfremdung</em> through existentialist thought and into contemporary theories of affect and precarity. In the work presented here, alienation is not a problem to be solved but a condition to be inhabited&mdash;a way of being in the world that, precisely in its estrangement, opens onto truths that belonging forecloses.</p>
+
+    <p>The photographs are saturated with the texture of alienation. They are made from positions of enclosure&mdash;from inside vehicles, from behind windows, from the sealed interiors of buses and planes whose overhead compartments and reading lights constitute a hermetic world utterly disconnected from the darkness pressing against the glass. The interior of the vehicle is a non-place in Marc Aug&eacute;&rsquo;s sense: a space of transit that produces no identity, no relation, no history. It is a space designed for passage, not for dwelling. And yet these photographs insist on attending to it, on finding within its functional anonymity a strange and melancholy beauty. The bokeh of a streetlight seen through a rain-streaked window, the glow of an overhead reading lamp reflected in the plastic curve of a luggage compartment&mdash;these are images of alienation aestheticized, not in the sense of beautified or made palatable, but in the sense of being rendered perceptible as a sensory and affective condition.</p>
+
+    <p>Lauren Berlant&rsquo;s concept of the impasse is useful here. Berlant described the impasse as a state of suspension in which the subject finds themselves unable to move forward along the trajectories promised by the normative scripts of the good life&mdash;upward mobility, stable employment, reproductive futurity, national belonging&mdash;and yet equally unable to articulate an alternative trajectory. The impasse is not stasis; it is a kind of ongoingness without progress, a form of life lived in the stretched-out present of perpetual adjustment. The traveler in these photographs inhabits such an impasse. They are moving&mdash;the blur of the images attests to constant motion&mdash;but the movement does not resolve into arrival. The landscapes slide past without cohering into a destination. The lights that appear on the horizon could be the lights of a city that is approaching or a city that has already been left behind; there is no way to tell. Motion here is not the opposite of stasis but its formal equivalent: a kinetic limbo, a displacement without end.</p>
+
+    <h3>IV. Light as Desire, Light as Wound</h3>
+
+    <p class="first">In the economy of these images, light does not function as revelation. It functions as punctuation&mdash;as a mark of interruption in the continuous darkness, a point of intensity around which the eye gathers without finding satisfaction. There is something deeply desirous about these points of light, something that recalls Roland Barthes&rsquo;s concept of the <em>punctum</em>: the detail in a photograph that pricks, that wounds, that establishes a direct and unmediated relation with the viewer&rsquo;s affect. But whereas Barthes&rsquo;s punctum is typically a found detail&mdash;an unexpected element within an otherwise studious image&mdash;the puncta in this work are the images themselves, reduced to their barest constituents. Light, here, is what remains when everything else has been taken away.</p>
+
+    <p>This reduction is significant. It stages a confrontation between desire and its object that queer theory has long recognized as constitutive of queer experience. The light in these photographs is always at a distance, always partially obscured, always mediated by glass, fog, motion, or atmospheric haze. It is present but unreachable, visible but untouchable. It orients the viewer&rsquo;s gaze&mdash;gives it something to move toward&mdash;while simultaneously withholding the possibility of satisfaction. This is the structure of what Mu&ntilde;oz called queer longing: a desire directed not toward an attainable object but toward a horizon, a potentiality, a world that one can imagine but not yet inhabit. The lights on the hillside, the solitary streetlamp standing in a field of absolute black, the headlights of a car on a road that disappears into the mountain&rsquo;s shadow&mdash;these are figures of a futurity that beckons without arriving, that promises without fulfilling.</p>
+
+    <p>And there is a violence in this, too. The singular streetlamp&mdash;that recurring motif in this body of work, that vertical stroke of light in the horizontal void&mdash;is not merely beautiful. It is also brutal in its isolation. It illuminates nothing but the ground immediately beneath it and the empty air immediately above. It is a technology of visibility that has been placed in the landscape by an institutional power&mdash;the municipality, the state, the infrastructure of governance&mdash;and yet here, at night, in the absence of anyone to see by its light, it reveals only the inadequacy of its own project. It cannot make the darkness legible. It can only make the darkness visible as darkness. This is the paradox of the apparatus of illumination when it encounters the queer opacity of the night: it does not dispel the unknown but throws it into sharper relief.</p>
+
+    <h3>V. Limbo as Method</h3>
+
+    <p class="first">The title of this exhibition&mdash;<em>Between Lights</em>&mdash;names a condition rather than a place. To be between lights is to be in the interval, the gap, the neither-here-nor-there. It is a condition that will be immediately recognizable to anyone who has lived the experience of migration, of diaspora, of sexual or gender non-conformity in a world organized around the presumption of fixity and coherence. It is the condition of the person who has left one territory without arriving in another, who carries within themselves the unresolved tension between the place they have departed and the place they have not yet reached. It is, in the language of postcolonial theory, the condition of the in-between&mdash;what Homi Bhabha called the <em>third space</em>, a space that is not a synthesis of two prior positions but something irreducibly new, something that could not have been anticipated by either.</p>
+
+    <p>What is remarkable about this body of work is that it does not frame limbo as a condition to be overcome. It does not narrativize the journey&mdash;does not give us a beginning, a middle, and an end, a departure and an arrival that would redeem the discomfort of the in-between by revealing it as a necessary passage toward a stable destination. Instead, it insists on limbo as a permanent condition, as the ground of experience itself. This is a radical claim, and it aligns with Jack Halberstam&rsquo;s theorization of queer failure&mdash;the refusal to succeed on the terms set by heteronormative, capitalist culture. To fail to arrive, in Halberstam&rsquo;s framework, is not a deficit but a creative act: it opens up alternative ways of being in time, in space, in relation to others, that are foreclosed by the demand for productive, forward-moving, goal-oriented life.</p>
+
+    <p>The formal strategies of the photographs reinforce this commitment to irresolution. The blur is not an accident of technique but a deliberate registration of the incompatibility between the moving body and the fixed image. The darkness is not a failure of exposure but a refusal to manufacture a visibility that does not exist. The grain and noise that texture many of these images&mdash;the evidence of the camera&rsquo;s sensor straining at the limits of its sensitivity&mdash;are not flaws to be corrected but material traces of the encounter between the apparatus and the real, marks of the camera&rsquo;s own alienation from the scene it attempts to capture. The photographs are, in this sense, honest about their own inadequacy. They do not pretend to master the night. They enter it as subjects, not as sovereign observers, and they bring back evidence of what it feels like to perceive without understanding, to move without arriving, to desire without possessing.</p>
+
+    <h3>VI. An Atlas of Non-Belonging</h3>
+
+    <p class="first">Taken together, the photographs in this exhibition constitute something like an atlas&mdash;but an atlas of a very particular kind. Not a cartographic instrument designed to orient and locate, to fix territories within a grid of knowable coordinates, but an atlas of affects, of atmospheres, of the sensory residues left by the experience of passing through a world that does not belong to you and to which you do not belong. It is an atlas compiled from the position of the outsider, the insomniac, the nocturnal traveler whose relationship to the landscape is one of proximity without intimacy, of contact without possession.</p>
+
+    <p>This is, finally, what gives the work its political charge. In a moment when the question of who belongs where&mdash;who has the right to occupy which territory, to cross which border, to claim which identity&mdash;has become one of the defining struggles of our time, these photographs offer a counter-image. They do not depict the violence of borders directly, nor do they document the bureaucratic apparatus of inclusion and exclusion. What they do is something more subtle and perhaps more enduring: they give form to the experience of living outside the categories of belonging altogether, of inhabiting the night as a space where the distinctions between citizen and alien, between home and away, between self and other, lose their sharpness and dissolve into the shared condition of darkness.</p>
+
+    <p>There is no redemption in this work, no promise that the night will end and the light will return to restore the legibility of the world. But there is something else&mdash;something that might be called, cautiously, a form of solidarity. The lights that appear in these photographs, scattered across hillsides and highways, separated by vast expanses of unilluminated terrain, are evidence that others exist out there in the dark. They cannot be identified. They cannot be approached. But they persist, and their persistence is itself a form of communication&mdash;a signal sent across the void that says: <em>I am here, too. I am also between lights.</em> The exhibition asks whether this minimal gesture of co-presence&mdash;this acknowledgment of shared displacement, shared opacity, shared refusal to be fully seen&mdash;might constitute the basis for a politics that does not require the violence of identification, a community that does not require the closure of belonging. It asks, in other words, whether it is possible to be together in the dark.</p>
+
+    <p>Perhaps this is what the night has always offered to those who live at the margins of the legible: not refuge exactly, but a suspension of the demand to be known. The queer subject, the migrant, the insomniac, the traveler who has lost track of time zones and the difference between departure and arrival&mdash;all find in the night a temporary reprieve from the daylight regime of classification. Giorgio Agamben wrote of the contemporary as the one who perceives the darkness of their time as something that concerns them, who does not allow themselves to be blinded by the lights of the century but instead fixes their gaze on the obscurity. These photographs perform precisely that act of attention. They fix their gaze on the darkness, and in doing so they discover that the darkness is not empty but inhabited, not silent but communicating, not a negation of the world but another modality of its existence&mdash;one that may, in the end, prove more hospitable to those who have never been at home in the light.</p>
+
+    <div class="essay-divider">&bull; &bull; &bull;</div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+// === IMAGE LIST ===
+const images = [
+  '_DSC6990_1.jpg','_DSC6991_1.jpg','_DSC6992_1.jpg','_DSC6993_1.jpg',
+  '_DSC6994_1.jpg','_DSC6995_1.jpg','_DSC6996_1.jpg','_DSC6998_1.jpg',
+  '_DSC6999.jpg','_DSC7001.jpg','_DSC7002.jpg','_DSC7003.jpg',
+  '_DSC7004.jpg','_DSC7005.jpg','_DSC7006.jpg','_DSC7007.jpg',
+  '_DSC7010.jpg','_DSC7011.jpg','_DSC7012.jpg','_DSC7013.jpg',
+  '_DSC7014.jpg','_DSC7015.jpg','_DSC7018.jpg','_DSC7019.jpg',
+  '_DSC7019_1.jpg','_DSC7020.jpg','_DSC7021.jpg','_DSC7022.jpg',
+  '_DSC7023.jpg','_DSC7025.jpg','_DSC7041.jpg','_DSC7042.jpg',
+  '_DSC7043.jpg','_DSC7044.jpg','_DSC7045.jpg','_DSC7046.jpg',
+  '_DSC7047.jpg','_DSC7048.jpg','_DSC7049.jpg','_DSC7050.jpg',
+  '_DSC7051.jpg','_DSC7052.jpg','_DSC7053.jpg','_DSC7054.jpg',
+  '_DSC7055.jpg','_DSC7056.jpg','_DSC7057.jpg','_DSC7058.jpg',
+  '_DSC7059.jpg','_DSC7060.jpg','_DSC7061.jpg','_DSC7062.jpg',
+  '_DSC7063.jpg','_DSC7527.jpg','_DSC7528.jpg','_DSC7529.jpg',
+  '_DSC7530.jpg','_DSC7531.jpg','_DSC7532.jpg','_DSC7533.jpg',
+  '_DSC7534.jpg','_DSC7535.jpg','_DSC7536.jpg','_DSC7537.jpg',
+  '_DSC7538.jpg','_DSC7539.jpg','_DSC7540.jpg','_DSC7541.jpg',
+  '_DSC7542.jpg','_DSC7543.jpg','_DSC7544.jpg','_DSC7545.jpg',
+  '_DSC7546.jpg','_DSC7548.jpg','_DSC7549.jpg','_DSC7550.jpg',
+  '_DSC7551.jpg','_DSC7552.jpg','_DSC7553.jpg','_DSC7554.jpg',
+  '_DSC7555.jpg','_DSC7557.jpg','_DSC7558.jpg','_DSC7560.jpg',
+  '_DSC7560_1.jpg','_DSC7561.jpg','_DSC7562.jpg','_DSC7563.jpg',
+  '_DSC7565.jpg','_DSC7566.jpg','_DSC7567.jpg'
+];
+
+const CANVAS_W = 9000, CANVAS_H = 6500;
+
+// === SEEDED PRNG ===
+let seed = 42;
+function rng(){ seed=(seed*16807+0)%2147483647; return(seed-1)/2147483646; }
+function rngRange(a,b){ return a+rng()*(b-a); }
+function rngInt(a,b){ return Math.floor(rngRange(a,b+1)); }
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){const j=rngInt(0,i);[arr[i],arr[j]]=[arr[j],arr[i]]} return arr; }
+
+// === ZONE DEFINITIONS ===
+// Each zone: type, cx, cy, arrangement logic
+const zones = [
+  // Zone 0: HERO CENTER — 1 large image
+  { type:'hero', cx:4500, cy:3250, count:1, sizeRange:[750,900] },
+
+  // Zone 1: FELDMANN GRID (NW) — tight grid of small prints
+  { type:'grid', cx:1300, cy:1100, count:16, sizeRange:[130,180], cols:4, spacing:20 },
+
+  // Zone 2: TILLMANS SALON (NE) — varied sizes, organic scatter
+  { type:'salon', cx:6500, cy:1400, count:14, sizeRange:[160,550], spread:800 },
+
+  // Zone 3: LARGE SINGLES (W) — vertical column of big prints
+  { type:'column', cx:700, cy:3200, count:5, sizeRange:[500,700], vSpacing:100 },
+
+  // Zone 4: LOOSE SCATTER (center-south)
+  { type:'salon', cx:3800, cy:4800, count:14, sizeRange:[180,420], spread:900 },
+
+  // Zone 5: ACCUMULATION WALL (SE) — dense cluster
+  { type:'accumulation', cx:6800, cy:4200, count:16, sizeRange:[100,240], spread:600 },
+
+  // Zone 6: HORIZON LINE (top) — images in a rough horizontal line
+  { type:'line', cx:4500, cy:500, count:8, sizeRange:[200,360], lineSpread:3500 },
+
+  // Zone 7: DIPTYCHS (SW) — pairs of images
+  { type:'pairs', cx:1800, cy:4800, count:6, sizeRange:[280,380] },
+
+  // Zone 8: SCATTERED SINGLES — large solitary images in the gaps
+  { type:'scattered', cx:4500, cy:3250, count:8, sizeRange:[400,650] },
+
+  // Zone 9: Small cluster bottom-center
+  { type:'grid', cx:3500, cy:5800, count:9, sizeRange:[110,150], cols:3, spacing:18 },
+];
+
+// === LAYOUT ENGINE ===
+const placements = [];
+let imgIdx = 0;
+const shuffled = shuffle([...Array(images.length).keys()]);
+
+function placeImage(x, y, w, h, rotation){
+  if(imgIdx >= images.length) return;
+  const idx = shuffled[imgIdx++];
+  placements.push({ file:images[idx], x, y, w, h, rotation });
+}
+
+// Check rough overlap (simple AABB)
+function overlaps(x,y,w,h){
+  for(const p of placements){
+    if(x < p.x+p.w+10 && x+w+10 > p.x && y < p.y+p.h+10 && y+h+10 > p.y) return true;
+  }
+  return false;
+}
+
+zones.forEach(zone => {
+  const count = Math.min(zone.count, images.length - imgIdx);
+  if(count <= 0) return;
+
+  if(zone.type === 'hero'){
+    const s = rngRange(zone.sizeRange[0], zone.sizeRange[1]);
+    const ratio = rng() > 0.5 ? 1.5 : 0.667;
+    const w = ratio > 1 ? s : s * ratio;
+    const h = ratio > 1 ? s / ratio : s;
+    placeImage(zone.cx - w/2, zone.cy - h/2, w, h, 0);
+  }
+
+  else if(zone.type === 'grid'){
+    const cols = zone.cols || 4;
+    const rows = Math.ceil(count / cols);
+    const cellW = rngRange(zone.sizeRange[0], zone.sizeRange[1]);
+    const cellH = cellW * 0.667;
+    const gap = zone.spacing || 15;
+    const totalW = cols * cellW + (cols-1) * gap;
+    const totalH = rows * cellH + (rows-1) * gap;
+    const startX = zone.cx - totalW/2;
+    const startY = zone.cy - totalH/2;
+    for(let i=0; i<count; i++){
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = startX + col * (cellW + gap) + rngRange(-3, 3);
+      const y = startY + row * (cellH + gap) + rngRange(-3, 3);
+      const rot = rngRange(-1.5, 1.5);
+      placeImage(x, y, cellW, cellH, rot);
+    }
+  }
+
+  else if(zone.type === 'salon'){
+    const spread = zone.spread || 600;
+    for(let i=0; i<count; i++){
+      let attempts = 0, placed = false;
+      while(attempts < 50 && !placed){
+        const angle = rngRange(0, Math.PI*2);
+        const dist = rngRange(50, spread);
+        const s = rngRange(zone.sizeRange[0], zone.sizeRange[1]);
+        const isPortrait = rng() > 0.55;
+        const w = isPortrait ? s * 0.667 : s;
+        const h = isPortrait ? s : s * 0.667;
+        const x = zone.cx + Math.cos(angle) * dist - w/2;
+        const y = zone.cy + Math.sin(angle) * dist - h/2;
+        const rot = rngRange(-3, 3);
+        if(!overlaps(x, y, w, h)){
+          placeImage(x, y, w, h, rot);
+          placed = true;
+        }
+        attempts++;
+      }
+      if(!placed){
+        // Force place with offset
+        const s = rngRange(zone.sizeRange[0], zone.sizeRange[1]);
+        const w = s; const h = s * 0.667;
+        placeImage(zone.cx + rngRange(-spread*1.3, spread*1.3),
+                   zone.cy + rngRange(-spread*1.3, spread*1.3), w, h, rngRange(-2,2));
+      }
+    }
+  }
+
+  else if(zone.type === 'column'){
+    let curY = zone.cy - (count * 400)/2;
+    for(let i=0; i<count; i++){
+      const s = rngRange(zone.sizeRange[0], zone.sizeRange[1]);
+      const isLandscape = rng() > 0.4;
+      const w = isLandscape ? s : s * 0.667;
+      const h = isLandscape ? s * 0.667 : s;
+      const x = zone.cx - w/2 + rngRange(-40, 40);
+      placeImage(x, curY, w, h, rngRange(-1, 1));
+      curY += h + (zone.vSpacing || 80) + rngRange(-20, 40);
+    }
+  }
+
+  else if(zone.type === 'accumulation'){
+    const spread = zone.spread || 500;
+    for(let i=0; i<count; i++){
+      const s = rngRange(zone.sizeRange[0], zone.sizeRange[1]);
+      const isP = rng() > 0.5;
+      const w = isP ? s*0.667 : s;
+      const h = isP ? s : s*0.667;
+      const x = zone.cx + rngRange(-spread, spread);
+      const y = zone.cy + rngRange(-spread*0.6, spread*0.6);
+      placeImage(x, y, w, h, rngRange(-4, 4));
+    }
+  }
+
+  else if(zone.type === 'line'){
+    const lineSpread = zone.lineSpread || 2500;
+    const step = lineSpread / (count - 1 || 1);
+    const startX = zone.cx - lineSpread/2;
+    for(let i=0; i<count; i++){
+      const s = rngRange(zone.sizeRange[0], zone.sizeRange[1]);
+      const isP = rng() > 0.5;
+      const w = isP ? s*0.667 : s;
+      const h = isP ? s : s*0.667;
+      const x = startX + i * step + rngRange(-30, 30);
+      const y = zone.cy + rngRange(-50, 50) - h/2;
+      placeImage(x, y, w, h, rngRange(-2, 2));
+    }
+  }
+
+  else if(zone.type === 'pairs'){
+    const pairCount = Math.floor(count / 2);
+    let curY = zone.cy - pairCount * 250;
+    for(let p=0; p<pairCount; p++){
+      const s = rngRange(zone.sizeRange[0], zone.sizeRange[1]);
+      const gap = rngRange(15, 30);
+      const w = s; const h = s * 0.667;
+      const pairW = w * 2 + gap;
+      const startX = zone.cx - pairW/2;
+      const rot = rngRange(-1, 1);
+      placeImage(startX, curY, w, h, rot);
+      placeImage(startX + w + gap, curY, w, h, rot + rngRange(-0.5, 0.5));
+      curY += h + rngRange(80, 160);
+    }
+  }
+
+  else if(zone.type === 'scattered'){
+    // Place large singles in empty areas
+    const spots = [
+      [2600, 2000], [6200, 2800], [1800, 2600], [5000, 5200],
+      [3200, 1500], [7500, 3000], [2000, 5500], [7200, 5200]
+    ];
+    for(let i=0; i<count && i<spots.length; i++){
+      const s = rngRange(zone.sizeRange[0], zone.sizeRange[1]);
+      const isP = rng() > 0.5;
+      const w = isP ? s*0.667 : s;
+      const h = isP ? s : s*0.667;
+      placeImage(spots[i][0] + rngRange(-80,80), spots[i][1] + rngRange(-80,80),
+                 w, h, rngRange(-2, 2));
+    }
+  }
+});
+
+// === RENDER DOM ===
+const universe = document.getElementById('universe');
+const fragment = document.createDocumentFragment();
+
+placements.forEach((p, i) => {
+  const div = document.createElement('div');
+  div.className = 'photo';
+  div.style.cssText = `left:${p.x}px;top:${p.y}px;width:${p.w}px;height:${p.h}px;transform:rotate(${p.rotation}deg)`;
+  div.dataset.idx = i;
+
+  const img = document.createElement('img');
+  img.loading = 'lazy';
+  img.alt = '';
+  img.dataset.src = '_gallery/' + encodeURIComponent(p.file).replace(/%20/g,' ');
+  // Use a tiny transparent placeholder
+  img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+  div.appendChild(img);
+
+  // Add tape to ~40% of images
+  if(rng() > 0.6){
+    const tape = document.createElement('div');
+    tape.className = 'tape';
+    const tapeW = rngRange(20, 40);
+    tape.style.width = tapeW + 'px';
+    tape.style.left = rngRange(15, 70) + '%';
+    tape.style.setProperty('--tape-angle', rngRange(-15, 15) + 'deg');
+    tape.style.transform = `rotate(${rngRange(-15,15)}deg)`;
+    div.appendChild(tape);
+  }
+
+  fragment.appendChild(div);
+});
+
+universe.appendChild(fragment);
+const photoEls = document.querySelectorAll('.photo');
+
+// === MINIMAP DOTS ===
+const minimap = document.getElementById('minimap');
+const mmW = minimap.offsetWidth || 100;
+const mmH = minimap.offsetHeight || 72;
+placements.forEach(p => {
+  const dot = document.createElement('div');
+  dot.className = 'mm-dot';
+  dot.style.left = (p.x / CANVAS_W * mmW) + 'px';
+  dot.style.top = (p.y / CANVAS_H * mmH) + 'px';
+  minimap.appendChild(dot);
+});
+
+// === VIEWPORT / PAN / ZOOM ===
+let vpX = 4500 - window.innerWidth/2;
+let vpY = 3250 - window.innerHeight/2;
+let scale = 1;
+let targetScale = 1;
+let velX = 0, velY = 0;
+let isDragging = false;
+let dragStartX, dragStartY, dragVpX, dragVpY;
+let lastMoveX, lastMoveY, lastMoveTime;
+let entered = false;
+
+function clampVP(){
+  const maxX = CANVAS_W * scale - window.innerWidth;
+  const maxY = CANVAS_H * scale - window.innerHeight;
+  vpX = Math.max(0, Math.min(vpX, maxX));
+  vpY = Math.max(0, Math.min(vpY, maxY));
+}
+
+function updateTransform(){
+  universe.style.transform = `translate(${-vpX}px, ${-vpY}px) scale(${scale})`;
+}
+
+function updateMinimap(){
+  const vp = document.getElementById('mm-vp');
+  const w = (window.innerWidth / (CANVAS_W * scale)) * mmW;
+  const h = (window.innerHeight / (CANVAS_H * scale)) * mmH;
+  const x = (vpX / (CANVAS_W * scale)) * mmW;
+  const y = (vpY / (CANVAS_H * scale)) * mmH;
+  vp.style.left = x + 'px'; vp.style.top = y + 'px';
+  vp.style.width = w + 'px'; vp.style.height = h + 'px';
+}
+
+// === LAZY LOADING with IntersectionObserver replacement (manual) ===
+function checkVisibility(){
+  const buffer = 300;
+  const vl = vpX / scale - buffer;
+  const vt = vpY / scale - buffer;
+  const vr = (vpX + window.innerWidth) / scale + buffer;
+  const vb = (vpY + window.innerHeight) / scale + buffer;
+
+  photoEls.forEach((el, i) => {
+    const p = placements[i];
+    const inView = p.x + p.w > vl && p.x < vr && p.y + p.h > vt && p.y < vb;
+
+    if(inView && !el.classList.contains('visible')){
+      const img = el.querySelector('img');
+      if(img.dataset.src){
+        img.src = img.dataset.src;
+        delete img.dataset.src;
+      }
+      // Stagger fade-in
+      setTimeout(() => el.classList.add('visible'), rngInt(0, 400));
+    }
+  });
+}
+
+// === ANIMATION LOOP ===
+let rafId;
+function tick(){
+  if(!isDragging){
+    vpX += velX;
+    vpY += velY;
+    velX *= 0.92;
+    velY *= 0.92;
+    if(Math.abs(velX) < 0.1) velX = 0;
+    if(Math.abs(velY) < 0.1) velY = 0;
+  }
+  // Smooth zoom
+  if(Math.abs(scale - targetScale) > 0.001){
+    scale += (targetScale - scale) * 0.12;
+  }
+  clampVP();
+  updateTransform();
+  updateMinimap();
+  checkVisibility();
+  rafId = requestAnimationFrame(tick);
+}
+
+// === MOUSE INTERACTION ===
+document.addEventListener('mousedown', e => {
+  if(!entered) return;
+  if(e.target.closest('#lightbox')) return;
+  isDragging = true;
+  dragStartX = e.clientX; dragStartY = e.clientY;
+  dragVpX = vpX; dragVpY = vpY;
+  lastMoveX = e.clientX; lastMoveY = e.clientY;
+  lastMoveTime = Date.now();
+  velX = 0; velY = 0;
+  document.body.style.cursor = 'grabbing';
+});
+document.addEventListener('mousemove', e => {
+  if(!isDragging) return;
+  const dx = e.clientX - dragStartX;
+  const dy = e.clientY - dragStartY;
+  vpX = dragVpX - dx;
+  vpY = dragVpY - dy;
+  // Track velocity
+  const now = Date.now();
+  const dt = now - lastMoveTime;
+  if(dt > 0){
+    velX = -(e.clientX - lastMoveX) * (16 / dt);
+    velY = -(e.clientY - lastMoveY) * (16 / dt);
+  }
+  lastMoveX = e.clientX; lastMoveY = e.clientY;
+  lastMoveTime = now;
+});
+document.addEventListener('mouseup', e => {
+  if(!isDragging) return;
+  isDragging = false;
+  document.body.style.cursor = '';
+  // Check if it was a click (minimal movement)
+  const dx = Math.abs(e.clientX - dragStartX);
+  const dy = Math.abs(e.clientY - dragStartY);
+  if(dx < 5 && dy < 5){
+    const photo = e.target.closest('.photo');
+    if(photo) openLightbox(photo);
+  }
+});
+
+// Scroll wheel zoom
+document.addEventListener('wheel', e => {
+  if(!entered) return;
+  e.preventDefault();
+  const zoomFactor = e.deltaY > 0 ? 0.92 : 1.08;
+  const newScale = Math.max(0.3, Math.min(2.5, targetScale * zoomFactor));
+  // Zoom toward cursor
+  const mx = e.clientX;
+  const my = e.clientY;
+  const worldX = (vpX + mx) / scale;
+  const worldY = (vpY + my) / scale;
+  targetScale = newScale;
+  vpX = worldX * newScale - mx;
+  vpY = worldY * newScale - my;
+}, {passive: false});
+
+// === TOUCH INTERACTION ===
+let touches = [];
+let lastPinchDist = 0;
+let pinchCenterX, pinchCenterY;
+
+document.addEventListener('touchstart', e => {
+  if(!entered) return;
+  if(e.target.closest('#lightbox')) return;
+  e.preventDefault();
+  touches = [...e.touches];
+  if(touches.length === 1){
+    isDragging = true;
+    dragStartX = touches[0].clientX; dragStartY = touches[0].clientY;
+    dragVpX = vpX; dragVpY = vpY;
+    lastMoveX = touches[0].clientX; lastMoveY = touches[0].clientY;
+    lastMoveTime = Date.now();
+    velX = 0; velY = 0;
+  } else if(touches.length === 2){
+    isDragging = false;
+    const dx = touches[1].clientX - touches[0].clientX;
+    const dy = touches[1].clientY - touches[0].clientY;
+    lastPinchDist = Math.sqrt(dx*dx + dy*dy);
+    pinchCenterX = (touches[0].clientX + touches[1].clientX) / 2;
+    pinchCenterY = (touches[0].clientY + touches[1].clientY) / 2;
+  }
+}, {passive: false});
+
+document.addEventListener('touchmove', e => {
+  if(!entered) return;
+  e.preventDefault();
+  const t = [...e.touches];
+  if(t.length === 1 && isDragging){
+    const dx = t[0].clientX - dragStartX;
+    const dy = t[0].clientY - dragStartY;
+    vpX = dragVpX - dx;
+    vpY = dragVpY - dy;
+    const now = Date.now();
+    const dt = now - lastMoveTime;
+    if(dt > 0){
+      velX = -(t[0].clientX - lastMoveX) * (16 / dt);
+      velY = -(t[0].clientY - lastMoveY) * (16 / dt);
+    }
+    lastMoveX = t[0].clientX; lastMoveY = t[0].clientY;
+    lastMoveTime = now;
+  } else if(t.length === 2){
+    const dx = t[1].clientX - t[0].clientX;
+    const dy = t[1].clientY - t[0].clientY;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if(lastPinchDist > 0){
+      const pinchRatio = dist / lastPinchDist;
+      const newScale = Math.max(0.3, Math.min(2.5, scale * pinchRatio));
+      const cx = (t[0].clientX + t[1].clientX) / 2;
+      const cy = (t[0].clientY + t[1].clientY) / 2;
+      const worldX = (vpX + cx) / scale;
+      const worldY = (vpY + cy) / scale;
+      scale = newScale;
+      targetScale = newScale;
+      vpX = worldX * newScale - cx;
+      vpY = worldY * newScale - cy;
+    }
+    lastPinchDist = dist;
+  }
+}, {passive: false});
+
+document.addEventListener('touchend', e => {
+  if(!entered) return;
+  if(e.touches.length === 0){
+    isDragging = false;
+    // Tap detection
+    if(touches.length === 1){
+      const dx = Math.abs(touches[0].clientX - dragStartX);
+      const dy = Math.abs(touches[0].clientY - dragStartY);
+      if(dx < 10 && dy < 10){
+        const photo = document.elementFromPoint(touches[0].clientX, touches[0].clientY);
+        const p = photo ? photo.closest('.photo') : null;
+        if(p) openLightbox(p);
+      }
+    }
+    touches = [];
+    lastPinchDist = 0;
+  } else if(e.touches.length === 1){
+    isDragging = true;
+    dragStartX = e.touches[0].clientX; dragStartY = e.touches[0].clientY;
+    dragVpX = vpX; dragVpY = vpY;
+    lastMoveX = e.touches[0].clientX; lastMoveY = e.touches[0].clientY;
+    lastMoveTime = Date.now();
+    lastPinchDist = 0;
+  }
+});
+
+// === LIGHTBOX ===
+const lightbox = document.getElementById('lightbox');
+const lbImg = document.getElementById('lb-img');
+const lbCaption = document.getElementById('lb-caption');
+
+function openLightbox(photoEl){
+  const idx = parseInt(photoEl.dataset.idx);
+  const p = placements[idx];
+  const src = '_gallery/' + encodeURIComponent(p.file).replace(/%20/g,' ');
+  lbImg.src = src;
+  lbCaption.textContent = (idx + 1) + ' / ' + placements.length;
+  lightbox.classList.add('show');
+  requestAnimationFrame(() => lightbox.classList.add('active'));
+}
+
+lightbox.addEventListener('click', () => {
+  lightbox.classList.remove('active');
+  setTimeout(() => { lightbox.classList.remove('show'); lbImg.src = ''; }, 500);
+});
+
+// Lightbox swipe (mobile) — left/right to navigate
+let lbTouchStartX = 0;
+let currentLbIdx = 0;
+lightbox.addEventListener('touchstart', e => {
+  lbTouchStartX = e.touches[0].clientX;
+  const caption = lbCaption.textContent;
+  currentLbIdx = parseInt(caption.split(' / ')[0]) - 1;
+});
+lightbox.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - lbTouchStartX;
+  if(Math.abs(dx) > 60){
+    let newIdx = dx < 0 ? currentLbIdx + 1 : currentLbIdx - 1;
+    newIdx = Math.max(0, Math.min(placements.length - 1, newIdx));
+    if(newIdx !== currentLbIdx){
+      const p = placements[newIdx];
+      lbImg.src = '_gallery/' + encodeURIComponent(p.file).replace(/%20/g,' ');
+      lbCaption.textContent = (newIdx + 1) + ' / ' + placements.length;
+      currentLbIdx = newIdx;
+    }
+  } else {
+    // Tap to close
+    lightbox.classList.remove('active');
+    setTimeout(() => { lightbox.classList.remove('show'); lbImg.src = ''; }, 500);
+  }
+});
+
+// Keyboard: arrow keys to pan, +/- to zoom, escape lightbox
+document.addEventListener('keydown', e => {
+  if(!entered) return;
+  if(lightbox.classList.contains('show')){
+    if(e.key === 'Escape'){
+      lightbox.classList.remove('active');
+      setTimeout(() => { lightbox.classList.remove('show'); lbImg.src = ''; }, 500);
+    }
+    if(e.key === 'ArrowRight' || e.key === 'ArrowLeft'){
+      const dir = e.key === 'ArrowRight' ? 1 : -1;
+      let newIdx = currentLbIdx + dir;
+      newIdx = Math.max(0, Math.min(placements.length - 1, newIdx));
+      const p = placements[newIdx];
+      lbImg.src = '_gallery/' + encodeURIComponent(p.file).replace(/%20/g,' ');
+      lbCaption.textContent = (newIdx + 1) + ' / ' + placements.length;
+      currentLbIdx = newIdx;
+    }
+    return;
+  }
+  const panSpeed = 60;
+  if(e.key==='ArrowLeft') vpX -= panSpeed;
+  if(e.key==='ArrowRight') vpX += panSpeed;
+  if(e.key==='ArrowUp') vpY -= panSpeed;
+  if(e.key==='ArrowDown') vpY += panSpeed;
+  if(e.key==='+' || e.key==='=') targetScale = Math.min(2.5, targetScale * 1.1);
+  if(e.key==='-') targetScale = Math.max(0.3, targetScale * 0.9);
+});
+
+// === ENTRY ===
+const titleEl = document.getElementById('title');
+function enter(){
+  if(entered) return;
+  entered = true;
+  titleEl.classList.add('fade');
+  setTimeout(() => { titleEl.style.display = 'none'; }, 2500);
+  document.getElementById('minimap').classList.remove('hidden');
+  document.getElementById('hint').classList.remove('hidden');
+  document.getElementById('counter').classList.remove('hidden');
+  document.getElementById('counter').textContent = images.length + ' works';
+  document.getElementById('essay-btn').classList.remove('hidden');
+  // Hide hint after 5s
+  setTimeout(() => document.getElementById('hint').classList.add('hidden'), 5000);
+  // Start animation loop
+  tick();
+  // Initial visibility check
+  setTimeout(checkVisibility, 100);
+}
+
+titleEl.addEventListener('click', enter);
+titleEl.addEventListener('touchend', e => { e.preventDefault(); enter(); });
+document.addEventListener('keydown', e => { if(!entered && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); enter(); }});
+
+// Auto-enter after 6 seconds
+setTimeout(() => { if(!entered) enter(); }, 6000);
+
+// === ESSAY PANEL ===
+const essayBtn = document.getElementById('essay-btn');
+const essayPanel = document.getElementById('essay-panel');
+const essayClose = essayPanel.querySelector('.essay-close');
+
+essayBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  essayPanel.classList.add('show');
+  requestAnimationFrame(() => essayPanel.classList.add('active'));
+});
+essayClose.addEventListener('click', e => {
+  e.stopPropagation();
+  essayPanel.classList.remove('active');
+  setTimeout(() => essayPanel.classList.remove('show'), 500);
+});
+essayPanel.addEventListener('touchstart', e => { e.stopPropagation(); }, {passive:true});
+essayPanel.addEventListener('touchmove', e => { e.stopPropagation(); }, {passive:true});
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape' && essayPanel.classList.contains('show')){
+    essayPanel.classList.remove('active');
+    setTimeout(() => essayPanel.classList.remove('show'), 500);
+  }
+});
+
+// Initial position
+clampVP();
+updateTransform();
+
+})();
+</script>
+</body>
+</html>
