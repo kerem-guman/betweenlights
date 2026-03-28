@@ -8,7 +8,7 @@ A virtual photo exhibition by **Kerem Güman**.
 
 Open `exhibition.html` in any browser (desktop or mobile). No internet connection required.
 
-**Live version:** *[add your GitHub Pages URL here]*
+**Live version:** *https://kerem-guman.github.io/betweenlights/exhibition.html*
 
 ## How It Works
 
