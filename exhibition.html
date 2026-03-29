@@ -551,7 +551,7 @@ placements.forEach((p, i) => {
   const img = document.createElement('img');
   img.loading = 'lazy';
   img.alt = '';
-  img.dataset.src = 'main/' + encodeURIComponent(p.file).replace(/%20/g,' ');
+  img.dataset.src = encodeURIComponent(p.file).replace(/%20/g,' ');
   // Use a tiny transparent placeholder
   img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
@@ -820,7 +820,7 @@ const lbCaption = document.getElementById('lb-caption');
 function openLightbox(photoEl){
   const idx = parseInt(photoEl.dataset.idx);
   const p = placements[idx];
-  const src = 'main/' + encodeURIComponent(p.file).replace(/%20/g,' ');
+  const src = encodeURIComponent(p.file).replace(/%20/g,' ');
   lbImg.src = src;
   lbCaption.textContent = (idx + 1) + ' / ' + placements.length;
   lightbox.classList.add('show');
@@ -847,7 +847,7 @@ lightbox.addEventListener('touchend', e => {
     newIdx = Math.max(0, Math.min(placements.length - 1, newIdx));
     if(newIdx !== currentLbIdx){
       const p = placements[newIdx];
-      lbImg.src = 'main/' + encodeURIComponent(p.file).replace(/%20/g,' ');
+      lbImg.src = encodeURIComponent(p.file).replace(/%20/g,' ');
       lbCaption.textContent = (newIdx + 1) + ' / ' + placements.length;
       currentLbIdx = newIdx;
     }
@@ -871,7 +871,7 @@ document.addEventListener('keydown', e => {
       let newIdx = currentLbIdx + dir;
       newIdx = Math.max(0, Math.min(placements.length - 1, newIdx));
       const p = placements[newIdx];
-      lbImg.src = 'main/' + encodeURIComponent(p.file).replace(/%20/g,' ');
+      lbImg.src = encodeURIComponent(p.file).replace(/%20/g,' ');
       lbCaption.textContent = (newIdx + 1) + ' / ' + placements.length;
       currentLbIdx = newIdx;
     }
