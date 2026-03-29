@@ -8,18 +8,11 @@ A virtual photo exhibition by **Kerem Güman**.
 
 Open `exhibition.html` in any browser (desktop or mobile). No internet connection required.
 
-**Live version:** *https://kerem-guman.github.io/betweenlights/exhibition.html*
+**Live version:** [kerem-guman.github.io/betweenlights](https://kerem-guman.github.io/betweenlights/exhibition.html)
 
 ## How It Works
 
 The exhibition is a single HTML file with zero dependencies — no frameworks, no build tools, no server. Drag to navigate, pinch or scroll to zoom, tap any image to enlarge. The full curatorial essay is accessible via the "Exhibition Text" button.
-
-## Structure
-
-```
-exhibition.html      — the exhibition (open this)
-*.jpg                — original full-resolution photographs
-```
 
 ## License
 
